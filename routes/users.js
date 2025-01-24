@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const pool = require('../db');
 
-/* GET user listing. */
+/* GET user profile */
 router.get('/:id', async function(req, res, next) {
   const { id } = req.params;
   try {

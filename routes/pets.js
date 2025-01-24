@@ -4,20 +4,52 @@ const pool = require('../db');
 
 router.get('/', async function(req, res, next) {
   try {
-    //TODO: add filters and pagination
-    const result = await pool.query('SELECT * FROM pets'); 
-    res.send(result.rows);
+    const { min_price, max_price, page, limit } = req.query;
+
+    const minPrice = min_price ? Number(min_price) : 0;
+    const maxPrice = max_price ? Number(max_price) : 9999999;
+    const pageNumber = page ? Number(page) : 1;
+    const pageSize = limit ? Number(limit) : 10;
+
+    const offset = (pageNumber - 1) * pageSize;
+
+    const query = `
+      SELECT * FROM pets 
+      WHERE price >= $1 AND price <= $2
+      ORDER BY price ASC
+      LIMIT $3 OFFSET $4
+    `;
+
+    const result = await pool.query(query, [minPrice, maxPrice, pageSize, offset]);
+
+    res.send({
+      page: pageNumber,
+      limit: pageSize,
+      total: result.rowCount,
+      data: result.rows,
+    });
   } catch (err) {
     res.status(500).send('Server Error');
     console.log(err);
   }
 });
 
+
 router.get('/:id', async function(req, res, next) {
   try {
-    //TODO: get pet by id
-    //const result = await pool.query('SELECT * FROM pets'); 
-    //res.send(result.rows);
+    const petId = req.params.id;
+
+    if (isNaN(petId)) {
+      return res.status(400).json({ message: 'Некорректный ID' });
+    }
+
+    const result = await pool.query('SELECT * FROM pets WHERE id = $1', [petId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Питомец не найден' });
+    }
+
+    res.json(result.rows[0]);
   } catch (err) {
     res.status(500).send('Server Error');
     console.log(err);
