@@ -4,7 +4,7 @@ const pool = require('../db');
 
 router.get('/', async function(req, res, next) {
   try {
-    const { min_price, max_price, page, limit } = req.query;
+    const { min_price, max_price, category_id, page, limit} = req.query;
 
     const minPrice = min_price ? Number(min_price) : 0;
     const maxPrice = max_price ? Number(max_price) : 9999999;
@@ -13,14 +13,30 @@ router.get('/', async function(req, res, next) {
 
     const offset = (pageNumber - 1) * pageSize;
 
-    const query = `
+    // const queryCategory = `
+    //   WHERE category_id = $3
+    // `;
+    var result = null;
+
+
+    if (category_id !== undefined) { 
+      const query = `
+      SELECT * FROM pets 
+      WHERE price >= $1 AND price <= $2 AND category_id = $5
+      ORDER BY price ASC
+      LIMIT $3 OFFSET $4
+      `;
+      result = await pool.query(query, [minPrice, maxPrice, pageSize, offset, category_id]);
+    }
+    else {
+      const query = `
       SELECT * FROM pets 
       WHERE price >= $1 AND price <= $2
       ORDER BY price ASC
       LIMIT $3 OFFSET $4
-    `;
-
-    const result = await pool.query(query, [minPrice, maxPrice, pageSize, offset]);
+      `;
+      result = await pool.query(query, [minPrice, maxPrice, pageSize, offset]);
+    }
 
     res.send({
       page: pageNumber,
@@ -32,6 +48,7 @@ router.get('/', async function(req, res, next) {
     res.status(500).send('Server Error');
     console.log(err);
   }
+  
 });
 
 
