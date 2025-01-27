@@ -18,7 +18,7 @@ router.get('/pets/:id', authMiddleware, async function(req, res, next) {
   try {
     const petId = req.params.id;
     const userId = req.user.id;
-    const result = await pool.query('SELECT * FROM pets where user_id = $1 AND user_id = $2', [petId, userId]); 
+    const result = await pool.query('SELECT * FROM pets where id = $1 AND user_id = $2', [petId, userId]); 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Питомец не найден или у вас нет доступа' });
     }

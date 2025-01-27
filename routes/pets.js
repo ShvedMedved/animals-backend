@@ -4,7 +4,7 @@ const pool = require('../db');
 
 router.get('/', async function(req, res, next) {
   try {
-    const { min_price, max_price, category_id, page, limit} = req.query;
+    const { min_price, max_price, category_id, page, limit } = req.query;
 
     const minPrice = min_price ? Number(min_price) : 0;
     const maxPrice = max_price ? Number(max_price) : 9999999;
@@ -13,30 +13,31 @@ router.get('/', async function(req, res, next) {
 
     const offset = (pageNumber - 1) * pageSize;
 
-    // const queryCategory = `
-    //   WHERE category_id = $3
-    // `;
-    var result = null;
+    let query;
+    let queryParams = [minPrice, maxPrice, pageSize, offset];
 
+    if (category_id !== undefined) {
+      query = `
+        SELECT pets.*, categories.name AS category_name 
+        FROM pets 
+        LEFT JOIN categories ON pets.category_id = categories.id
+        WHERE pets.price >= $1 AND pets.price <= $2 AND pets.category_id = $5
+        ORDER BY pets.price ASC
+        LIMIT $3 OFFSET $4
+      `;
+      queryParams.push(category_id);
+    } else {
+      query = `
+        SELECT pets.*, categories.name AS category_name 
+        FROM pets 
+        LEFT JOIN categories ON pets.category_id = categories.id
+        WHERE pets.price >= $1 AND pets.price <= $2
+        ORDER BY pets.price ASC
+        LIMIT $3 OFFSET $4
+      `;
+    }
 
-    if (category_id !== undefined) { 
-      const query = `
-      SELECT * FROM pets 
-      WHERE price >= $1 AND price <= $2 AND category_id = $5
-      ORDER BY price ASC
-      LIMIT $3 OFFSET $4
-      `;
-      result = await pool.query(query, [minPrice, maxPrice, pageSize, offset, category_id]);
-    }
-    else {
-      const query = `
-      SELECT * FROM pets 
-      WHERE price >= $1 AND price <= $2
-      ORDER BY price ASC
-      LIMIT $3 OFFSET $4
-      `;
-      result = await pool.query(query, [minPrice, maxPrice, pageSize, offset]);
-    }
+    const result = await pool.query(query, queryParams);
 
     res.send({
       page: pageNumber,
@@ -46,10 +47,10 @@ router.get('/', async function(req, res, next) {
     });
   } catch (err) {
     res.status(500).send('Server Error');
-    console.log(err);
+    console.error('Ошибка при получении списка питомцев:', err);
   }
-  
 });
+
 
 
 router.get('/:id', async function(req, res, next) {
@@ -60,7 +61,14 @@ router.get('/:id', async function(req, res, next) {
       return res.status(400).json({ message: 'Некорректный ID' });
     }
 
-    const result = await pool.query('SELECT * FROM pets WHERE id = $1', [petId]);
+    const query = `
+      SELECT pets.*, categories.name AS category_name 
+      FROM pets 
+      JOIN categories ON pets.category_id = categories.id 
+      WHERE pets.id = $1
+    `;
+
+    const result = await pool.query(query, [petId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Питомец не найден' });
@@ -69,7 +77,7 @@ router.get('/:id', async function(req, res, next) {
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).send('Server Error');
-    console.log(err);
+    console.error('Ошибка при получении питомца:', err);
   }
 });
 
